@@ -1,8 +1,10 @@
 # Bootloader Configuration (embassy-boot)
 
-RMK supports DFU firmware updates via [embassy-boot](https://github.com/embassy-rs/embassy/tree/main/embassy-boot) for **RP2040** and **nRF52840**. The bootloader splits flash into ACTIVE and DFU slots, providing safe updates with automatic rollback on failure.
+[embassy-boot](https://github.com/embassy-rs/embassy/tree/main/embassy-boot) is a libary of the embassy framework that is used to build bootloaders.
+RMK supports DFU firmware updates via embassy-boot for **RP2040** and **nRF52840**. An embassy-boot based bootloader splits flash into ACTIVE and DFU slots, providing safe updates with automatic rollback on failure.
+This is an optional feature of RMK, the default bootloaders of the devices can still be used as usual without runtime updates via USB DFU.
 
-A pre-built bootloader called **bootymcbootface** is available for both platforms. The partition formula is identical:
+A pre-built embassy-boot based bootloader called **bootymcbootface** is available for both platforms. The partition formula is identical:
 
 ```text
 bootloader+state = 28K (fixed)
@@ -12,7 +14,7 @@ ACTIVE    = (remaining - 4K) / 2
 DFU       = ACTIVE + 4K
 ```
 
-See the [flashing guide](../user_guide/flash_firmware/use_embassy_boot.mdx) for step-by-step instructions.
+See the [flashing guide](../user_guide/flash_firmware/use_embassy_boot.mdx) for step-by-step instructions on how to get the bootloader and RMK flashed.
 
 ## RP2040
 
@@ -27,6 +29,8 @@ import { Tab, Tabs, Rust, Toml } from '@theme'
 [dfu]
 # (Optional) Total flash size in bytes. Used to auto-calculate partition addresses.
 # Defaults to 2 MB (2097152) when omitted.
+# ⚠ You can define your own FLASH_SIZE and offset addresses, but then you must build and
+# flash a custom embassy-boot bootloader with a matching memory.x!
 flash_size = 2097152
 
 # (Optional) Flash page size in bytes (4096 for RP2040).
@@ -100,7 +104,8 @@ let flash = async_flash_wrapper(rmk::dfu::init_flash(
 ));
 
 // Optional: assign a DFU activity LED
-rmk::dfu::set_led(Some(Output::new(p.PIN_25, Level::Low)));
+let mut dfu_led_processor =
+    rmk::processor::builtin::dfu_led::DfuLedProcessor::new(Output::new(p.PIN_25, Level::Low), false);
 
 // Mark boot as successful (so bootloader doesn't revert on reset)
 rmk::dfu::mark_booted();
@@ -111,7 +116,8 @@ let mut dfu_lock = ::rmk::dfu::DfuLock::new(unlock_keys, &keymap);
 // Then add dfu_lock in run_all!()
 // ...
 	run_all!(
-		// other processors ... 
+		// other processors ...
+		dfu_led_processor,
 		dfu_lock,
 	)
 ```
@@ -130,6 +136,8 @@ Add a `[dfu]` section to your `keyboard.toml` or use the Rust API directly.
 [dfu]
 # (Optional) Total flash size in bytes. Used to auto-calculate partition addresses.
 # 1 MB flash — auto-calculates ACTIVE (432K) and DFU (436K)
+# ⚠ You can define your own FLASH_SIZE and offset addresses, but then you must build and
+# flash a custom embassy-boot bootloader with a matching memory.x!
 flash_size = 1048576
 
 # (Optional) Flash page size in bytes (4096 for RP2040).
@@ -200,10 +208,11 @@ let flash = async_flash_wrapper(rmk::dfu::init_flash(
     dfu_size,
 ));
 
-rmk::dfu::set_led(Some(Output::new(p.P0_15, Level::Low, OutputDrive::Standard)));
-
 // Optional: assign a DFU activity LED
-rmk::dfu::set_led(Some(Output::new(p.P0_15, Level::Low, OutputDrive::Standard)));
+let mut dfu_led_processor = rmk::processor::builtin::dfu_led::DfuLedProcessor::new(
+    Output::new(p.P0_15, Level::Low, OutputDrive::Standard),
+    false,
+);
 
 // Mark boot as successful (so bootloader doesn't revert on reset)
 rmk::dfu::mark_booted();
@@ -215,7 +224,8 @@ let mut dfu_lock = ::rmk::dfu::DfuLock::new(unlock_keys, &keymap);
 // Then add dfu_lock in run_all!()
 // ...
 run_all!(
-	// other processors ... 
+	// other processors ...
+	dfu_led_processor
 	dfu_lock,
 )
 ```

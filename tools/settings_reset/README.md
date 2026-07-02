@@ -1,6 +1,6 @@
 # Settings Reset for Ergohaven nRF52840 Keyboards
 
-Universal firmware that erases the application flash area, clearing all stored settings:
+Universal firmware that erases the RMK default settings flash range, clearing all stored settings:
 - Keymaps / Vial configuration
 - BLE bonds and profiles
 - Layout options
@@ -9,13 +9,13 @@ Universal firmware that erases the application flash area, clearing all stored s
 
 1. Put the keyboard into bootloader mode (double-tap reset)
 2. Drag `settings_reset.uf2` to the USB drive
-3. Device will erase settings and enter bootloader again
+3. Device will erase settings, verify erased pages, and enter bootloader again
 4. Flash your normal keyboard firmware (.uf2)
 
 ## Safe Zones
 
-Only the application area (0x26000–0xF4000) is erased.
-The Adafruit bootloader and its settings are preserved.
+Only the RMK default nRF52 BLE storage area (0x60000–0x62000) is erased.
+The reset application page, Adafruit bootloader, and bootloader settings are preserved.
 
 ## Compatible Devices
 

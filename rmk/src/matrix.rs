@@ -284,12 +284,15 @@ impl<
 
     #[cfg(feature = "async_matrix")]
     async fn wait_input_pins(&mut self) {
-        let mut futs: Vec<_, ROW> = self
+        let futs: Vec<_, ROW> = self
             .get_input_pins_mut()
             .iter_mut()
             .map(|input_pin| input_pin.wait_for_high())
             .collect();
-        let _ = select_slice(pin!(futs.as_mut_slice())).await;
+        let futs = pin!(futs);
+        // SAFETY: `futs` is pinned above and not moved afterwards; `as_mut_slice` only
+        // reborrows its backing storage, so the futures stay pinned in place while polled.
+        let _ = select_slice(unsafe { futs.map_unchecked_mut(|v| v.as_mut_slice()) }).await;
     }
 }
 
@@ -314,12 +317,15 @@ impl<
 
     #[cfg(feature = "async_matrix")]
     async fn wait_input_pins(&mut self) {
-        let mut futs: Vec<_, COL> = self
+        let futs: Vec<_, COL> = self
             .get_input_pins_mut()
             .iter_mut()
             .map(|input_pin| input_pin.wait_for_high())
             .collect();
-        let _ = select_slice(pin!(futs.as_mut_slice())).await;
+        let futs = pin!(futs);
+        // SAFETY: `futs` is pinned above and not moved afterwards; `as_mut_slice` only
+        // reborrows its backing storage, so the futures stay pinned in place while polled.
+        let _ = select_slice(unsafe { futs.map_unchecked_mut(|v| v.as_mut_slice()) }).await;
     }
 }
 

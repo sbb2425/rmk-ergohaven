@@ -679,11 +679,6 @@ impl DisplayRenderer<Rgb565> for QubeStatusRenderer {
             .alignment(Alignment::Center)
             .baseline(Baseline::Middle)
             .build();
-        let tr = TextStyleBuilder::new()
-            .alignment(Alignment::Right)
-            .baseline(Baseline::Top)
-            .build();
-
         let left = ctx.peripherals_connected.first().copied().unwrap_or(false);
         let right = ctx.peripherals_connected.get(1).copied().unwrap_or(false);
         let lp = battery_reading(ctx.peripheral_batteries.first().map(|b| b.0));
@@ -700,15 +695,6 @@ impl DisplayRenderer<Rgb565> for QubeStatusRenderer {
         let _ = write!(&mut s, "{} WPM", ctx.wpm);
         let _ =
             Text::with_text_style(&s, Point::new(SCREEN_W as i32 / 2, 21), body, tc).draw(display);
-        s.clear();
-        let _ = s.push_str("USB HOST");
-        let _ = Text::with_text_style(
-            &s,
-            Point::new(SAFE_X + SAFE_W as i32 - 13, 21),
-            body_accent,
-            tr,
-        )
-        .draw(display);
 
         // Layer panel.
         draw_panel(

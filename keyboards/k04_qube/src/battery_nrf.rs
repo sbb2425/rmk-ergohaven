@@ -5,6 +5,7 @@
 //! on "??" forever. This reader skips calibrate, times out samples, and
 //! re-publishes BatteryStatusEvent every 2s so the split loop can forward.
 
+use embassy_futures::select::select;
 use embassy_nrf::interrupt;
 use embassy_nrf::interrupt::InterruptExt;
 use embassy_nrf::peripherals::{P0_31, SAADC};
@@ -12,7 +13,10 @@ use embassy_nrf::saadc::{self, Input as _, Saadc};
 use embassy_nrf::{bind_interrupts, Peri};
 use embassy_time::{with_timeout, Duration, Timer};
 use rmk::core_traits::Runnable;
-use rmk::event::{publish_event, BatteryStatusEvent, EventSubscriber};
+use rmk::event::{
+    publish_event, BatteryStatusEvent, EventSubscriber, PeripheralBatteryRefreshEvent,
+    SubscribableEvent,
+};
 use rmk::processor::Processor;
 use rmk::types::battery::{BatteryStatus, ChargeState};
 
@@ -46,6 +50,22 @@ impl K04Battery {
             saadc: Saadc::new(saadc, SaadcIrqs, saadc::Config::default(), [channel]),
         }
     }
+
+    async fn publish_sample(&mut self) {
+        let mut buf = [0i16; 1];
+        let level =
+            match with_timeout(Duration::from_millis(200), self.saadc.sample(&mut buf)).await {
+                Ok(()) => {
+                    let raw = if buf[0] < 0 { 0 } else { buf[0] as u16 };
+                    percent(raw)
+                }
+                Err(_) => 0,
+            };
+        publish_event(BatteryStatusEvent(BatteryStatus::Available {
+            charge_state: ChargeState::Unknown,
+            level: Some(level),
+        }));
+    }
 }
 
 struct NeverSub;
@@ -61,21 +81,14 @@ impl EventSubscriber for NeverSub {
 impl Runnable for K04Battery {
     async fn run(&mut self) -> ! {
         Timer::after(Duration::from_millis(1000)).await;
+        let mut refresh_sub = PeripheralBatteryRefreshEvent::subscriber();
         loop {
-            let mut buf = [0i16; 1];
-            let level =
-                match with_timeout(Duration::from_millis(200), self.saadc.sample(&mut buf)).await {
-                    Ok(()) => {
-                        let raw = if buf[0] < 0 { 0 } else { buf[0] as u16 };
-                        percent(raw)
-                    }
-                    Err(_) => 0,
-                };
-            publish_event(BatteryStatusEvent(BatteryStatus::Available {
-                charge_state: ChargeState::Unknown,
-                level: Some(level),
-            }));
-            Timer::after(Duration::from_secs(2)).await;
+            self.publish_sample().await;
+            let _ = select(
+                Timer::after(Duration::from_secs(2)),
+                refresh_sub.next_event(),
+            )
+            .await;
         }
     }
 }

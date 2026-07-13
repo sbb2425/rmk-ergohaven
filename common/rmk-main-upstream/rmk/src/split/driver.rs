@@ -82,6 +82,8 @@ impl<const ROW: usize, const COL: usize, const ROW_OFFSET: usize, const COL_OFFS
         let mut connection_sub = crate::event::ConnectionStatusChangeEvent::subscriber();
         #[cfg(feature = "_ble")]
         let mut clear_peer_sub = crate::event::ClearPeerEvent::subscriber();
+        #[cfg(feature = "_ble")]
+        let mut battery_refresh_sub = crate::event::PeripheralBatteryRefreshEvent::subscriber();
 
         #[cfg(feature = "display")]
         let mut wpm_sub = crate::event::WpmUpdateEvent::subscriber();
@@ -122,6 +124,9 @@ impl<const ROW: usize, const COL: usize, const ROW_OFFSET: usize, const COL_OFFS
                                 .await;
                         }
                         SplitMessage::ClearPeer
+                    },
+                    with_feature("_ble"): _ = battery_refresh_sub.next_event().fuse() => {
+                        SplitMessage::BatteryRefresh
                     },
                     with_feature("display"): e = wpm_sub.next_event().fuse() => SplitMessage::Wpm(e.0),
                     with_feature("display"): e = modifier_sub.next_event().fuse() => SplitMessage::Modifier(e.modifier.into_bits()),
@@ -176,6 +181,7 @@ impl<const ROW: usize, const COL: usize, const ROW_OFFSET: usize, const COL_OFFS
             #[cfg(feature = "_ble")]
             SplitMessage::BatteryStatus(state) => {
                 use crate::event::PeripheralBatteryEvent;
+                crate::split::battery::update_peripheral_battery_status(self.id, state.0);
                 publish_event(PeripheralBatteryEvent { id: self.id, state })
             }
             _ => warn!("{:?} should not come from peripheral", split_message),

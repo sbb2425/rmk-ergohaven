@@ -111,6 +111,10 @@ impl<S: SplitWriter + SplitReader> SplitPeripheral<S> {
                                 )))
                                 .await;
                         }
+                        #[cfg(feature = "_ble")]
+                        SplitMessage::BatteryRefresh => {
+                            publish_event(crate::event::PeripheralBatteryRefreshEvent);
+                        }
                         SplitMessage::KeyboardIndicator(indicator) => {
                             // Publish KeyboardIndicator event
                             publish_event(LedIndicatorEvent::new(

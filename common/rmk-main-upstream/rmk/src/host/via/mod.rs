@@ -21,6 +21,9 @@ const HOST_DATA_VOLUME: u8 = 0xAB;
 const HOST_DATA_LAYOUT: u8 = 0xAC;
 const HOST_DATA_MEDIA_ARTIST: u8 = 0xAD;
 const HOST_DATA_MEDIA_TITLE: u8 = 0xAE;
+const ERGOHAVEN_CUSTOM_NAMESPACE: u8 = 0xE8;
+const ERGOHAVEN_CUSTOM_BATTERY_HALVES: u8 = 0x01;
+const ERGOHAVEN_BATTERY_HALVES_VERSION: u8 = 0x01;
 
 fn process_host_data_packet(data: &[u8; 32]) -> bool {
     match data[0] {
@@ -51,6 +54,15 @@ fn host_data_text(data: &[u8; 32]) -> &str {
     match core::str::from_utf8(bytes) {
         Ok(text) => text,
         Err(err) => core::str::from_utf8(&bytes[..err.valid_up_to()]).unwrap_or(""),
+    }
+}
+
+fn battery_level_byte(status: rmk_types::battery::BatteryStatus) -> Option<u8> {
+    match status {
+        rmk_types::battery::BatteryStatus::Available {
+            level: Some(level), ..
+        } if level <= 100 => Some(level),
+        _ => None,
     }
 }
 
@@ -159,8 +171,36 @@ impl<'a> VialService<'a> {
                 warn!("Custom set value -- not supported")
             }
             ViaCommand::CustomGetValue => {
-                // backlight/rgblight/rgb matrix/led matrix/audio settings here
-                warn!("Custom get value -- not supported")
+                if report.output_data[1] == ERGOHAVEN_CUSTOM_NAMESPACE
+                    && report.output_data[2] == ERGOHAVEN_CUSTOM_BATTERY_HALVES
+                {
+                    #[cfg(all(feature = "split", feature = "_ble"))]
+                    crate::event::publish_event(crate::event::PeripheralBatteryRefreshEvent);
+
+                    report.input_data[3] = ERGOHAVEN_BATTERY_HALVES_VERSION;
+                    report.input_data[4] = 0;
+                    report.input_data[5] = 0xFF;
+                    report.input_data[6] = 0xFF;
+
+                    #[cfg(all(feature = "split", feature = "_ble"))]
+                    {
+                        if let Some(level) =
+                            battery_level_byte(self.ctx.peripheral_battery_status(0))
+                        {
+                            report.input_data[4] |= 0x01;
+                            report.input_data[5] = level;
+                        }
+                        if let Some(level) =
+                            battery_level_byte(self.ctx.peripheral_battery_status(1))
+                        {
+                            report.input_data[4] |= 0x02;
+                            report.input_data[6] = level;
+                        }
+                    }
+                } else {
+                    // backlight/rgblight/rgb matrix/led matrix/audio settings here
+                    warn!("Custom get value -- not supported")
+                }
             }
             ViaCommand::CustomSave => {
                 // backlight/rgblight/rgb matrix/led matrix/audio settings here

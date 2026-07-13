@@ -30,6 +30,13 @@ pub struct PeripheralBatteryEvent {
     pub state: BatteryStatusEvent,
 }
 
+/// Request a peripheral battery refresh.
+#[cfg(feature = "_ble")]
+#[event(channel_size = crate::PERIPHERAL_BATTERY_REFRESH_EVENT_CHANNEL_SIZE, pubs = crate::PERIPHERAL_BATTERY_REFRESH_EVENT_PUB_SIZE, subs = crate::PERIPHERAL_BATTERY_REFRESH_EVENT_SUB_SIZE)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct PeripheralBatteryRefreshEvent;
+
 /// Clear BLE peer information event
 #[cfg(feature = "_ble")]
 #[event(channel_size = crate::CLEAR_PEER_EVENT_CHANNEL_SIZE, pubs = crate::CLEAR_PEER_EVENT_PUB_SIZE, subs = crate::CLEAR_PEER_EVENT_SUB_SIZE)]

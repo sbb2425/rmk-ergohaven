@@ -8,6 +8,8 @@ use crate::event::{KeyboardEvent, PointingEvent};
 
 #[cfg(feature = "_ble")]
 pub mod ble;
+#[cfg(feature = "_ble")]
+pub(crate) mod battery;
 pub mod central;
 /// Common abstraction layer of split driver
 pub(crate) mod driver;
@@ -48,6 +50,9 @@ pub(crate) enum SplitMessage {
     /// not change when a dongle is built with `display` and halves are not.
     #[cfg(feature = "_ble")]
     BatteryStatus(BatteryStatusEvent),
+    /// Battery refresh request, from central to peripheral.
+    #[cfg(feature = "_ble")]
+    BatteryRefresh,
     /// WPM from central to peripheral
     #[cfg(feature = "display")]
     Wpm(u16),

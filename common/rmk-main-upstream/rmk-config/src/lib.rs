@@ -406,6 +406,7 @@ define_event_config!(
     peripheral_connected,
     central_connected,
     peripheral_battery,
+    peripheral_battery_refresh,
     clear_peer,
     // DFU events
     dfu_status,

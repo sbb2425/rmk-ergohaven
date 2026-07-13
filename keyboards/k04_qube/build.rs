@@ -8,20 +8,23 @@ use xz2::read::XzEncoder;
 fn main() {
     println!("cargo:rerun-if-changed=vial.json");
     println!("cargo:rerun-if-changed=keyboard.toml");
-    println!(
-        "cargo:rustc-env=RMK_VIAL_DEVICE_SETTINGS_FN=crate::vial_settings::vial_device_settings"
-    );
+    println!("cargo:rerun-if-changed=memory_halves.x");
+    println!("cargo:rerun-if-changed=memory_qube.x");
 
     generate_vial_config();
 
     let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());
+    let memory = if env::var_os("CARGO_FEATURE_QUBE").is_some() {
+        include_bytes!("memory_qube.x").as_slice()
+    } else {
+        include_bytes!("memory_halves.x").as_slice()
+    };
     File::create(out.join("memory.x"))
         .unwrap()
-        .write_all(include_bytes!("memory.x"))
+        .write_all(memory)
         .unwrap();
     println!("cargo:rustc-link-search={}", out.display());
 
-    println!("cargo:rerun-if-changed=memory.x");
     println!("cargo:rustc-link-arg=--nmagic");
     println!("cargo:rustc-link-arg=-Tlink.x");
     println!("cargo:rustc-link-arg=-Tdefmt.x");

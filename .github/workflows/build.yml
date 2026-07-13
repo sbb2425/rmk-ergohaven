@@ -220,6 +220,7 @@ jobs:
         working-directory: keyboards/${{ matrix.keyboard }}
         env:
           BINDGEN_EXTRA_CLANG_ARGS: "--sysroot=/usr/lib/arm-none-eabi --target=arm-none-eabi -I/usr/lib/arm-none-eabi/include -I/usr/lib/gcc/arm-none-eabi/13.2.1/include"
+          CARGO_TARGET_DIR: target/qube
           RUST_MIN_STACK: "16777216"
         run: cargo build --release --bin qube --features qube
 
@@ -227,6 +228,7 @@ jobs:
         working-directory: keyboards/${{ matrix.keyboard }}
         env:
           BINDGEN_EXTRA_CLANG_ARGS: "--sysroot=/usr/lib/arm-none-eabi --target=arm-none-eabi -I/usr/lib/arm-none-eabi/include -I/usr/lib/gcc/arm-none-eabi/13.2.1/include"
+          CARGO_TARGET_DIR: target/halves
           RUST_MIN_STACK: "16777216"
         run: cargo build --release --bin left
 
@@ -234,6 +236,7 @@ jobs:
         working-directory: keyboards/${{ matrix.keyboard }}
         env:
           BINDGEN_EXTRA_CLANG_ARGS: "--sysroot=/usr/lib/arm-none-eabi --target=arm-none-eabi -I/usr/lib/arm-none-eabi/include -I/usr/lib/gcc/arm-none-eabi/13.2.1/include"
+          CARGO_TARGET_DIR: target/halves
           RUST_MIN_STACK: "16777216"
         run: cargo build --release --bin right
 
@@ -241,19 +244,19 @@ jobs:
         working-directory: keyboards/${{ matrix.keyboard }}
         run: |
           arm-none-eabi-objcopy -O binary \
-            target/thumbv7em-none-eabihf/release/qube qube.bin
+            target/qube/thumbv7em-none-eabihf/release/qube qube.bin
           python3 ../../uf2conv.py qube.bin \
-            --base 0x26000 --family 0xADA52840 \
+            --base 0x1000 --family 0xADA52840 \
             --output ${{ matrix.keyboard }}_dongle.uf2
 
           arm-none-eabi-objcopy -O binary \
-            target/thumbv7em-none-eabihf/release/left left.bin
+            target/halves/thumbv7em-none-eabihf/release/left left.bin
           python3 ../../uf2conv.py left.bin \
             --base 0x26000 --family 0xADA52840 \
             --output ${{ matrix.keyboard }}_left.uf2
 
           arm-none-eabi-objcopy -O binary \
-            target/thumbv7em-none-eabihf/release/right right.bin
+            target/halves/thumbv7em-none-eabihf/release/right right.bin
           python3 ../../uf2conv.py right.bin \
             --base 0x26000 --family 0xADA52840 \
             --output ${{ matrix.keyboard }}_right.uf2

@@ -180,6 +180,10 @@ name = "keyboard_morse_test"
 path = "tests/keyboard_morse_test.rs"
 
 [[test]]
+name = "keyboard_morse_timeout_priority_test"
+path = "tests/keyboard_morse_timeout_priority_test.rs"
+
+[[test]]
 name = "keyboard_one_shot_test"
 path = "tests/keyboard_one_shot_test.rs"
 

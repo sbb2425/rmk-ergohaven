@@ -424,7 +424,16 @@ impl<'a, const ROW: usize, const COL: usize, const NUM_LAYER: usize, const NUM_E
                     info!("Waiting morse key: {:?}", key.action);
                     match with_deadline(key.timeout_time, KEY_EVENT_CHANNEL.receive()).await {
                         Ok(event) => {
-                            debug!("Buffered morse key interrupted by a new key event: {:?}", event);
+                            // `with_deadline` polls the event future first, so enforce an elapsed
+                            // deadline before processing an event that became ready at the same poll.
+                            if Instant::now() >= key.timeout_time {
+                                debug!("Buffered morse key deadline elapsed before queued event");
+                                self.handle_morse_timeout(&key).await;
+                            }
+                            debug!(
+                                "Buffered morse key interrupted by a new key event: {:?}",
+                                event
+                            );
                             self.process_inner(event).await;
                         }
                         Err(_timeout) => {

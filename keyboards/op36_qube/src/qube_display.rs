@@ -20,11 +20,13 @@ use embassy_nrf::peripherals::{P0_02, P0_03, P0_28, P1_10, P1_11, P1_13, SPI3};
 use embassy_nrf::spim::{self, Spim};
 use embassy_nrf::{interrupt, Peri};
 use embassy_time::{Delay, Duration, Instant, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_10X20, FONT_6X10, FONT_9X15};
+use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_9X15, FONT_9X18_BOLD};
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
+use embedded_graphics::primitives::{
+    PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, RoundedRectangle,
+};
 use embedded_graphics::text::{Alignment, Baseline, Text, TextStyleBuilder};
 use embedded_hal_bus::spi::{ExclusiveDevice, NoDelay};
 use lcd_async::interface::SpiInterface;
@@ -58,6 +60,11 @@ const STRIPE_H: usize = 48;
 const STRIPE_BYTES: usize = SCREEN_W * STRIPE_H * 2;
 
 const BACKLIGHT_ACTIVE_HIGH: bool = true;
+const SAFE_X: i32 = 16;
+const SAFE_W: u32 = SCREEN_W as u32 - (SAFE_X as u32 * 2);
+const PANEL_RADIUS: u32 = 12;
+const CHIP_RADIUS: u32 = 8;
+const BAR_RADIUS: u32 = 5;
 
 const COL_BG: Rgb565 = Rgb565::new(1, 3, 5);
 const COL_FG: Rgb565 = Rgb565::new(30, 61, 30);
@@ -647,11 +654,10 @@ where
 // --- Full-screen UI ---------------------------------------------------------
 //
 // Fixed vertical zones (280x240) so nothing overlaps:
-//   8..36    compact header
-//   43..125  layer panel
-//   132..159 modifier chips
-//   168..220 battery cards
-//   224..240 footer
+//   14..44   compact header
+//   52..130  layer panel
+//   138..165 modifier chips
+//   174..224 battery cards
 
 pub struct QubeStatusRenderer;
 
@@ -662,6 +668,7 @@ impl DisplayRenderer<Rgb565> for QubeStatusRenderer {
         let small = MonoTextStyle::new(&FONT_6X10, COL_MUTED);
         let small_dim = MonoTextStyle::new(&FONT_6X10, COL_DIM);
         let body = MonoTextStyle::new(&FONT_9X15, COL_FG);
+        let layer_title = MonoTextStyle::new(&FONT_9X18_BOLD, COL_FG);
         let body_muted = MonoTextStyle::new(&FONT_9X15, COL_MUTED);
         let body_accent = MonoTextStyle::new(&FONT_9X15, COL_ACCENT);
         let body_amber = MonoTextStyle::new(&FONT_9X15, COL_AMBER);
@@ -687,20 +694,19 @@ impl DisplayRenderer<Rgb565> for QubeStatusRenderer {
         let ble_ok = ctx.ble_status.state == BleState::Connected;
 
         // Header.
-        draw_panel(display, 8, 8, 264, 28, COL_PANEL, COL_BORDER);
-        let _ = Rectangle::new(Point::new(8, 8), Size::new(4, 28))
-            .into_styled(PrimitiveStyle::with_fill(COL_ACCENT))
+        draw_panel(display, SAFE_X, 14, SAFE_W, 30, COL_PANEL, COL_BORDER);
+        draw_round_fill(display, SAFE_X + 10, 23, 4, 12, 2, COL_ACCENT);
+        let _ = Text::with_text_style("QUBE", Point::new(SAFE_X + 20, 22), body_accent, top)
             .draw(display);
-        let _ = Text::with_text_style("QUBE", Point::new(18, 15), body_accent, top).draw(display);
 
         let mut s: heapless::String<16> = heapless::String::new();
         let _ = write!(&mut s, "{}", ctx.wpm);
-        let _ = Text::with_text_style("WPM", Point::new(91, 13), small_dim, top).draw(display);
-        let _ = Text::with_text_style(&s, Point::new(128, 13), body, top).draw(display);
+        let _ = Text::with_text_style("WPM", Point::new(94, 20), small_dim, top).draw(display);
+        let _ = Text::with_text_style(&s, Point::new(131, 20), body, top).draw(display);
 
         let _ = Text::with_text_style(
             "USB",
-            Point::new(183, 15),
+            Point::new(184, 22),
             if ble_on { body_muted } else { body_accent },
             top,
         )
@@ -709,7 +715,7 @@ impl DisplayRenderer<Rgb565> for QubeStatusRenderer {
         let _ = write!(&mut s, "BLE{}", ctx.ble_status.profile.saturating_add(1));
         let _ = Text::with_text_style(
             &s,
-            Point::new(260, 15),
+            Point::new(252, 22),
             if ble_ok {
                 body_accent
             } else if ble_on {
@@ -722,72 +728,54 @@ impl DisplayRenderer<Rgb565> for QubeStatusRenderer {
         .draw(display);
 
         // Layer panel.
-        draw_panel(display, 8, 43, 264, 82, COL_PANEL_HI, COL_BORDER);
-        let _ = Rectangle::new(Point::new(8, 43), Size::new(264, 3))
-            .into_styled(PrimitiveStyle::with_fill(COL_ACCENT))
-            .draw(display);
+        draw_panel(display, SAFE_X, 52, SAFE_W, 78, COL_PANEL_HI, COL_BORDER);
+        draw_round_fill(display, SAFE_X + 18, 60, SAFE_W - 36, 3, 2, COL_ACCENT);
         s.clear();
         let _ = write!(&mut s, "LAYER {}", ctx.layer);
         let _ =
-            Text::with_text_style(&s, Point::new(SCREEN_W as i32 / 2, 53), small, tc).draw(display);
-        draw_text_scaled_centered(
-            display,
-            name,
-            SCREEN_W as i32 / 2,
-            76,
-            &FONT_10X20,
-            COL_FG,
-            2,
-        );
+            Text::with_text_style(&s, Point::new(SCREEN_W as i32 / 2, 69), small, tc).draw(display);
+        let _ = Text::with_text_style(name, Point::new(SCREEN_W as i32 / 2, 92), layer_title, tc)
+            .draw(display);
 
         // Modifier chips.
-        draw_panel(display, 8, 132, 264, 27, COL_PANEL, COL_BORDER);
-        draw_chip(display, 16, 138, 44, "CAPS", ctx.caps_lock);
+        draw_panel(display, SAFE_X, 138, SAFE_W, 27, COL_PANEL, COL_BORDER);
+        draw_chip(display, 24, 144, 42, "CAPS", ctx.caps_lock);
         draw_chip(
             display,
-            66,
-            138,
-            44,
+            72,
+            144,
+            42,
             "CTRL",
             ctx.modifiers.left_ctrl() || ctx.modifiers.right_ctrl(),
         );
         draw_chip(
             display,
-            116,
-            138,
-            48,
+            120,
+            144,
+            46,
             "SHIFT",
             ctx.modifiers.left_shift() || ctx.modifiers.right_shift(),
         );
         draw_chip(
             display,
-            170,
-            138,
-            42,
+            172,
+            144,
+            38,
             "ALT",
             ctx.modifiers.left_alt() || ctx.modifiers.right_alt(),
         );
         draw_chip(
             display,
-            218,
-            138,
-            42,
+            216,
+            144,
+            38,
             "GUI",
             ctx.modifiers.left_gui() || ctx.modifiers.right_gui(),
         );
 
         // Battery cards.
-        draw_bat(display, 8, 168, 128, lp, left, "LEFT");
-        draw_bat(display, 144, 168, 128, rp, right, "RIGHT");
-
-        // Footer.
-        let _ = Rectangle::new(Point::new(16, 224), Size::new((SCREEN_W - 32) as u32, 1))
-            .into_styled(PrimitiveStyle::with_fill(COL_DIM))
-            .draw(display);
-        let mut ver: heapless::String<24> = heapless::String::new();
-        let _ = write!(&mut ver, "v{} / RMK", env!("CARGO_PKG_VERSION"));
-        let _ = Text::with_text_style(&ver, Point::new(SCREEN_W as i32 / 2, 229), small, tc)
-            .draw(display);
+        draw_bat(display, SAFE_X, 174, 118, lp, left, "LEFT");
+        draw_bat(display, 146, 174, 118, rp, right, "RIGHT");
     }
 }
 
@@ -801,11 +789,28 @@ fn draw_panel<D: DrawTarget<Color = Rgb565>>(
     stroke: Rgb565,
 ) {
     let rect = Rectangle::new(Point::new(x, y), Size::new(w, h));
-    let _ = rect
-        .into_styled(PrimitiveStyle::with_fill(fill))
+    let style = PrimitiveStyleBuilder::new()
+        .fill_color(fill)
+        .stroke_color(stroke)
+        .stroke_width(1)
+        .build();
+    let _ = RoundedRectangle::with_equal_corners(rect, Size::new(PANEL_RADIUS, PANEL_RADIUS))
+        .into_styled(style)
         .draw(display);
-    let _ = rect
-        .into_styled(PrimitiveStyle::with_stroke(stroke, 1))
+}
+
+fn draw_round_fill<D: DrawTarget<Color = Rgb565>>(
+    display: &mut D,
+    x: i32,
+    y: i32,
+    w: u32,
+    h: u32,
+    radius: u32,
+    fill: Rgb565,
+) {
+    let rect = Rectangle::new(Point::new(x, y), Size::new(w, h));
+    let _ = RoundedRectangle::with_equal_corners(rect, Size::new(radius, radius))
+        .into_styled(PrimitiveStyle::with_fill(fill))
         .draw(display);
 }
 
@@ -824,70 +829,21 @@ fn draw_chip<D: DrawTarget<Color = Rgb565>>(
     } else {
         MonoTextStyle::new(&FONT_6X10, COL_DIM)
     };
-    draw_panel(display, x, y, w, 16, fill, stroke);
+    let rect = Rectangle::new(Point::new(x, y), Size::new(w, 16));
+    let style = PrimitiveStyleBuilder::new()
+        .fill_color(fill)
+        .stroke_color(stroke)
+        .stroke_width(1)
+        .build();
+    let _ = RoundedRectangle::with_equal_corners(rect, Size::new(CHIP_RADIUS, CHIP_RADIUS))
+        .into_styled(style)
+        .draw(display);
     let tc = TextStyleBuilder::new()
         .alignment(Alignment::Center)
         .baseline(Baseline::Top)
         .build();
     let _ =
         Text::with_text_style(label, Point::new(x + w as i32 / 2, y + 3), text, tc).draw(display);
-}
-
-fn draw_text_scaled_centered<D: DrawTarget<Color = Rgb565>>(
-    display: &mut D,
-    text: &str,
-    center_x: i32,
-    top_y: i32,
-    font: &embedded_graphics::mono_font::MonoFont<'_>,
-    color: Rgb565,
-    scale: i32,
-) {
-    let w = text.chars().count() as i32 * font.character_size.width as i32 * scale;
-    let top_left = Point::new(center_x - w / 2, top_y);
-    if scale <= 1 {
-        let style = MonoTextStyle::new(font, color);
-        let _ = Text::new(text, top_left, style).draw(display);
-        return;
-    }
-    let style = MonoTextStyle::new(font, color);
-    let mut scaler = ScaledDrawTarget {
-        inner: display,
-        origin: top_left,
-        scale,
-    };
-    let _ = Text::new(text, Point::zero(), style).draw(&mut scaler);
-}
-
-struct ScaledDrawTarget<'a, D> {
-    inner: &'a mut D,
-    origin: Point,
-    scale: i32,
-}
-
-impl<D: DrawTarget<Color = Rgb565>> OriginDimensions for ScaledDrawTarget<'_, D> {
-    fn size(&self) -> Size {
-        Size::new(SCREEN_W as u32, SCREEN_H as u32)
-    }
-}
-
-impl<D: DrawTarget<Color = Rgb565>> DrawTarget for ScaledDrawTarget<'_, D> {
-    type Color = Rgb565;
-    type Error = core::convert::Infallible;
-
-    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
-    where
-        I: IntoIterator<Item = Pixel<Rgb565>>,
-    {
-        let s = self.scale.max(1) as u32;
-        for Pixel(p, col) in pixels {
-            let x = self.origin.x + p.x * self.scale;
-            let y = self.origin.y + p.y * self.scale;
-            let _ = Rectangle::new(Point::new(x, y), Size::new(s, s))
-                .into_styled(PrimitiveStyle::with_fill(col))
-                .draw(self.inner);
-        }
-        Ok(())
-    }
 }
 
 #[derive(Clone, Copy)]
@@ -942,7 +898,7 @@ fn draw_bat<D: DrawTarget<Color = Rgb565>>(
             }
         };
 
-    draw_panel(display, x, y, w as u32, 52, COL_PANEL, COL_BORDER);
+    draw_panel(display, x, y, w as u32, 50, COL_PANEL, COL_BORDER);
 
     let title = MonoTextStyle::new(&FONT_6X10, COL_MUTED);
     let percent = MonoTextStyle::new(&FONT_9X15, col);
@@ -955,18 +911,20 @@ fn draw_bat<D: DrawTarget<Color = Rgb565>>(
     let _ = Text::with_text_style(&label, Point::new(x + w - 12, y + 5), percent, tr).draw(display);
 
     let bx = x + 10;
-    let by = y + 32;
-    let bw = w - 26;
+    let by = y + 31;
+    let bw = w - 28;
     let bh = 9u32;
-    let _ = Rectangle::new(Point::new(bx, by), Size::new(bw as u32, bh))
-        .into_styled(PrimitiveStyle::with_fill(COL_BAR_BG))
-        .draw(display);
-    let _ = Rectangle::new(Point::new(bx, by), Size::new(bw as u32, bh))
-        .into_styled(PrimitiveStyle::with_stroke(COL_BORDER, 1))
-        .draw(display);
-    let _ = Rectangle::new(Point::new(bx + bw + 2, by + 3), Size::new(4, 3))
-        .into_styled(PrimitiveStyle::with_fill(COL_BORDER))
-        .draw(display);
+    let bar = RoundedRectangle::with_equal_corners(
+        Rectangle::new(Point::new(bx, by), Size::new(bw as u32, bh)),
+        Size::new(BAR_RADIUS, BAR_RADIUS),
+    );
+    let bar_style = PrimitiveStyleBuilder::new()
+        .fill_color(COL_BAR_BG)
+        .stroke_color(COL_BORDER)
+        .stroke_width(1)
+        .build();
+    let _ = bar.into_styled(bar_style).draw(display);
+    draw_round_fill(display, bx + bw + 2, by + 3, 4, 3, 2, COL_BORDER);
     if let Some(pct) = fill_pct {
         if pct > 0 {
             let inner = (bw - 4).max(1) as u32;
@@ -978,9 +936,7 @@ fn draw_bat<D: DrawTarget<Color = Rgb565>>(
             } else {
                 COL_BAR_FG
             };
-            let _ = Rectangle::new(Point::new(bx + 2, by + 2), Size::new(fw, bh - 4))
-                .into_styled(PrimitiveStyle::with_fill(fc))
-                .draw(display);
+            draw_round_fill(display, bx + 2, by + 2, fw, bh - 4, 3, fc);
         }
     }
 }

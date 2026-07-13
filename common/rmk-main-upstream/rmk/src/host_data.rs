@@ -31,11 +31,18 @@ pub fn update_time(hour: u8, minute: u8) {
     if hour < 24 && minute < 60 {
         HOST_HOUR.store(hour, Ordering::Relaxed);
         HOST_MINUTE.store(minute, Ordering::Relaxed);
+    } else {
+        clear_time();
     }
 }
 
 pub fn update_layout(layout: u8) {
     HOST_LAYOUT.store(layout, Ordering::Relaxed);
+}
+
+pub fn clear_time() {
+    HOST_HOUR.store(UNKNOWN, Ordering::Relaxed);
+    HOST_MINUTE.store(UNKNOWN, Ordering::Relaxed);
 }
 
 pub fn update_media_artist(value: &str) {

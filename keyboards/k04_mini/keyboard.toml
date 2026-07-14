@@ -41,10 +41,10 @@ encoders = [["AudioVolUp","AudioVolDown"],["AudioVolUp","AudioVolDown"]]
 name = "Nav"
 # Phenom Mini lower layer.
 keys = """
-_      Kc1          Kc2          Kc3          Kc4          Kc5          Kc6      Kc7       Kc8      Kc9    Kc0       _
-_      Home         Insert       Delete       End          Enter        _        Left      Down     Up     Right     _
-_      WM(Z,LCtrl)  WM(X,LCtrl)  WM(C,LCtrl)  WM(V,LCtrl)  PrintScreen  _        _         CapsLock User2  PageDown  PageUp User1 _
-_      _            _            _            _            _            MO(3)    _         _        _
+_      Kc1      Kc2     Kc3     Kc4     Kc5          Kc6  Kc7  Kc8  Kc9  Kc0    _
+_      Home     Insert  Delete  End     Enter        _    Left Down Up   Right  _
+_      _        _       _       _       PrintScreen  _    _    _    _    _      _      _  _
+PageUp PageDown _       _       _       _            MO(3)    _     CapsLock CapsWordToggle
 """
 encoders = [["AudioVolUp","AudioVolDown"],["AudioVolUp","AudioVolDown"]]
 

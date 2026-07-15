@@ -40,6 +40,12 @@ cargo build --release --bin central
 cargo build --release --bin peripheral
 ```
 
+Current K:04-family regression matrix:
+
+```sh
+./scripts/build_k04_matrix.sh
+```
+
 ## Flashing
 
 1. Put device into bootloader (double-tap reset)

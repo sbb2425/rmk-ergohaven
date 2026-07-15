@@ -67,7 +67,11 @@ run() {
 
 build_split() {
     local keyboard="$1"
-    run "keyboards/$keyboard" cargo build --release --bin central --bin peripheral --bin hardreset
+    local bins=(--bin central --bin peripheral)
+    if grep -q 'name = "hardreset"' "$repo_root/keyboards/$keyboard/Cargo.toml"; then
+        bins+=(--bin hardreset)
+    fi
+    run "keyboards/$keyboard" cargo build --release "${bins[@]}"
 }
 
 build_qube() {
@@ -81,8 +85,9 @@ echo "Using BINDGEN_EXTRA_CLANG_ARGS=$BINDGEN_EXTRA_CLANG_ARGS"
 build_split k04
 build_split k04_mini
 build_split k04_micro
+build_split op36
 build_qube k04_qube
 build_qube op36_qube
 
 echo
-echo "K:04 build matrix OK"
+echo "K:04/OP36 build matrix OK"

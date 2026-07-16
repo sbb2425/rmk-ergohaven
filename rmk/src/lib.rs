@@ -128,6 +128,33 @@ pub async fn initialize_keymap_and_storage<
     storage_config: &config::StorageConfig,
     behavior_config: &'a mut config::BehaviorConfig,
     positional_config: &'a PositionalConfig<ROW, COL>,
+) -> (KeyMap<'a>, Storage<F, ROW, COL, NUM_LAYER, NUM_ENCODER>) {
+    initialize_keymap_and_storage_with_vial(
+        data,
+        flash,
+        storage_config,
+        behavior_config,
+        positional_config,
+        #[cfg(feature = "vial")]
+        None,
+    )
+    .await
+}
+
+#[cfg(feature = "storage")]
+pub async fn initialize_keymap_and_storage_with_vial<
+    'a,
+    F: AsyncNorFlash,
+    const ROW: usize,
+    const COL: usize,
+    const NUM_LAYER: usize,
+    const NUM_ENCODER: usize,
+>(
+    data: &'a mut KeymapData<ROW, COL, NUM_LAYER, NUM_ENCODER>,
+    flash: F,
+    storage_config: &config::StorageConfig,
+    behavior_config: &'a mut config::BehaviorConfig,
+    positional_config: &'a PositionalConfig<ROW, COL>,
     #[cfg(feature = "vial")] vial_config: Option<&config::VialConfig<'static>>,
 ) -> (KeyMap<'a>, Storage<F, ROW, COL, NUM_LAYER, NUM_ENCODER>) {
     #[cfg(feature = "host")]

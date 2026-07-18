@@ -28,8 +28,8 @@ layers = 4
 [[layer]]
 name = "Mouse"
 keys = """
-MouseBtn1  MouseBtn2
-MO(2)  MO(1)
+MouseBtn1  MO(1)
+MO(2)  MouseBtn2
 User0  User5
 """
 
